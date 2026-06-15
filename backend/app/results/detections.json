@@ -1,0 +1,182 @@
+[
+  {
+    "id": "58c69be7-fd75-42b5-93c2-356aba9fdcc3",
+    "timestamp": "2026-06-11T00:05:59.493449+00:00",
+    "detections": [
+      {
+        "class": "good apple",
+        "confidence": 0.6171,
+        "bbox": [
+          117,
+          0,
+          909,
+          270
+        ]
+      }
+    ],
+    "imageWidth": 1280,
+    "imageHeight": 720,
+    "inferenceMsec": 166.9,
+    "source": "stream",
+    "operatorConfirmed": null,
+    "removalStatus": "pending"
+  },
+  {
+    "id": "8569e2ec-225b-4408-b22d-566eed54db9f",
+    "timestamp": "2026-06-11T00:06:27.441062+00:00",
+    "detections": [
+      {
+        "class": "good banana",
+        "confidence": 0.5346,
+        "bbox": [
+          175,
+          40,
+          257,
+          144
+        ]
+      }
+    ],
+    "imageWidth": 275,
+    "imageHeight": 183,
+    "inferenceMsec": 137.0,
+    "source": "stream",
+    "operatorConfirmed": null,
+    "removalStatus": "pending"
+  },
+  {
+    "id": "cec52706-310b-4f1c-9f34-30fbf1582688",
+    "timestamp": "2026-06-11T00:06:33.880129+00:00",
+    "detections": [
+      {
+        "class": "good banana",
+        "confidence": 0.5346,
+        "bbox": [
+          175,
+          40,
+          257,
+          144
+        ]
+      }
+    ],
+    "imageWidth": 275,
+    "imageHeight": 183,
+    "inferenceMsec": 131.2,
+    "source": "stream",
+    "operatorConfirmed": true,
+    "removalStatus": "pending",
+    "updatedAt": "2026-06-11T00:39:48.783773+00:00"
+  },
+  {
+    "id": "941cdd8e-5364-4bfc-b41f-a2eaed2266d2",
+    "timestamp": "2026-06-11T00:06:38.122591+00:00",
+    "detections": [
+      {
+        "class": "good banana",
+        "confidence": 0.5346,
+        "bbox": [
+          175,
+          40,
+          257,
+          144
+        ]
+      }
+    ],
+    "imageWidth": 275,
+    "imageHeight": 183,
+    "inferenceMsec": 114.3,
+    "source": "stream",
+    "operatorConfirmed": false,
+    "removalStatus": "simulated",
+    "updatedAt": "2026-06-15T17:57:34.740228+00:00"
+  },
+  {
+    "id": "31aa3e3c-6998-41e3-a786-9bbe1d0dd14e",
+    "timestamp": "2026-06-11T00:33:30.681222+00:00",
+    "detections": [
+      {
+        "class": "good apple",
+        "confidence": 0.33,
+        "bbox": [
+          106,
+          0,
+          925,
+          318
+        ]
+      }
+    ],
+    "imageWidth": 1280,
+    "imageHeight": 720,
+    "inferenceMsec": 486.2,
+    "source": "stream",
+    "operatorConfirmed": true,
+    "removalStatus": "pending",
+    "updatedAt": "2026-06-11T00:39:45.216692+00:00"
+  },
+  {
+    "id": "a2da466e-d205-4588-8f0f-dbdec8ef66d8",
+    "timestamp": "2026-06-11T00:36:13.734537+00:00",
+    "detections": [
+      {
+        "class": "good apple",
+        "confidence": 0.356,
+        "bbox": [
+          122,
+          0,
+          930,
+          291
+        ]
+      }
+    ],
+    "imageWidth": 1280,
+    "imageHeight": 720,
+    "inferenceMsec": 74.7,
+    "source": "stream",
+    "operatorConfirmed": false,
+    "removalStatus": "pending",
+    "updatedAt": "2026-06-11T00:39:41.262495+00:00"
+  },
+  {
+    "id": "2fd7e820-648c-4a02-b8f8-61e162789c0c",
+    "timestamp": "2026-06-15T17:56:03.061918+00:00",
+    "detections": [
+      {
+        "class": "good banana",
+        "confidence": 0.535,
+        "bbox": [
+          175,
+          40,
+          256,
+          143
+        ]
+      }
+    ],
+    "imageWidth": 275,
+    "imageHeight": 183,
+    "inferenceMsec": 399.5,
+    "source": "stream",
+    "operatorConfirmed": null,
+    "removalStatus": "pending"
+  },
+  {
+    "id": "663e3965-eb33-4ee2-a165-ada73649beac",
+    "timestamp": "2026-06-15T18:46:16.582770+00:00",
+    "detections": [
+      {
+        "class": "good banana",
+        "confidence": 0.535,
+        "bbox": [
+          175,
+          40,
+          256,
+          143
+        ]
+      }
+    ],
+    "imageWidth": 275,
+    "imageHeight": 183,
+    "inferenceMsec": 274.88,
+    "source": "stream",
+    "operatorConfirmed": null,
+    "removalStatus": "pending"
+  }
+]

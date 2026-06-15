@@ -1,0 +1,91 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# =========================
+# Flask / Django common
+# =========================
+instance/
+.webassets-cache
+
+# =========================
+# ML / YOLO / models
+# =========================
+runs/
+weights/
+models/
+*.pt
+*.onnx
+*.engine
+*.mlmodel
+
+# кеш датасетів
+dataset/
+data/
+*.cache
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDEs
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# pytest / coverage
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# =========================
+# env files
+# =========================
+.env
+.env.local
+.env.*.local
+
+# =========================
+# frontend 
+# =========================
+node_modules/
+dist/
+build/
+
+# =========================
+# uploads / temporary files
+# =========================
+uploads/
+temp/
+tmp/
+
