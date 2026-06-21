@@ -21,6 +21,7 @@ MODELS_DIR = STORAGE_DIR / "models"      # trained/uploaded YOLO weights
 DETECTIONS_FILE = DATA_DIR / "detections.json"
 DAILY_STATS_FILE = DATA_DIR / "daily_stats.json"
 SETTINGS_FILE = DATA_DIR / "settings.json"
+CLASS_POLICY_FILE = DATA_DIR / "class_policy.json"
 
 # ---- Dataset (for training) ---------------------------------------------
 DATASET_DIR = BASE_DIR / "dataset"
@@ -41,6 +42,15 @@ DEFAULT_CLASS_NAMES = [
 
 DEFAULT_MODEL_WEIGHTS = MODELS_DIR / "best.pt"  # trained weights, if present
 FALLBACK_MODEL_NAME = "yolov8n.pt"  # used if no custom weights are trained yet
+
+# When a class name is first seen and isn't already in the class policy
+# store, it's auto-classified as a "defect" or "non-defect" (passing/good)
+# class using this simple keyword heuristic, so e.g. a model trained with
+# "good banana" / "bad banana" classes doesn't have every "good" detection
+# silently counted as a defect by default. This is just the initial guess
+# — it's stored and editable per-class afterward (see class_policy_repo.py
+# and the Settings page), never re-evaluated once set.
+NON_DEFECT_NAME_HINTS = ("good", "ok", "pass", "passed", "normal", "healthy", "accept", "no_defect", "no defect")
 
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 ALLOWED_VIDEO_EXT = {".mp4", ".avi", ".mov", ".mkv", ".webm"}

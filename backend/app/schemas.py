@@ -42,6 +42,14 @@ class Detection(BaseModel):
     width: Optional[float] = None
     height: Optional[float] = None
     frameIndex: Optional[int] = None
+    # Whether `defectType` represents an actual defect vs a non-defect /
+    # passing classification (e.g. a "good banana" class in a model that
+    # also has "bad banana"). Determined at creation time via
+    # class_policy_repo so it doesn't need to be re-derived from the class
+    # name everywhere downstream. True for every class unless the user has
+    # explicitly marked it as non-defect in Settings (or the name matches
+    # a "good/pass/ok/..." heuristic on first sight).
+    isDefect: bool = True
 
 
 class DetectionUpdate(BaseModel):

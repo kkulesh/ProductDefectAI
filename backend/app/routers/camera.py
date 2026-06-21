@@ -31,7 +31,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from ..schemas import Detection, RemovalStatus
 from ..services import inference, media_storage
-from ..storage import daily_stats_repo, detections_repo
+from ..storage import class_policy_repo, daily_stats_repo, detections_repo
 
 router = APIRouter(prefix="/api/camera", tags=["camera"])
 
@@ -134,9 +134,18 @@ async def camera_stream(websocket: WebSocket):
             # or whether this particular detection gets persisted below.
             daily_stats_repo.record_inspection()
 
+            # Tag each live box with whether its class is an actual defect
+            # (vs a non-defect/"passing" class like "good banana") so the
+            # frontend overlay can style them differently — registers any
+            # never-before-seen class name with a default classification.
+            policy = class_policy_repo.register_class_names(list({b.label for b in boxes}))
+            live_detections = [
+                {**b.model_dump(), "isDefect": policy.get(b.label, True)} for b in boxes
+            ]
+
             using_custom = inference.is_using_custom_model()
             response = {
-                "detections": [b.model_dump() for b in boxes],
+                "detections": live_detections,
                 "inferenceMs": inference_ms,
                 "modelName": inference.model_name(),
                 "usingCustomModel": using_custom,
@@ -156,6 +165,7 @@ async def camera_stream(websocket: WebSocket):
                     thumbnail_url = media_storage.save_detection_thumbnail_from_array(
                         frame, box.x, box.y, box.width, box.height
                     )
+                    is_defect = policy.get(box.label, True)
                     det = Detection(
                         defectType=box.label,
                         confidence=box.confidence,
@@ -166,9 +176,11 @@ async def camera_stream(websocket: WebSocket):
                         source="camera",
                         width=box.width * 100,
                         height=box.height * 100,
+                        isDefect=is_defect,
                     )
                     created.append(det)
-                    daily_stats_repo.record_defect_found()
+                    if is_defect:
+                        daily_stats_repo.record_defect_found()
 
                 if created:
                     detections_repo.add_detections_bulk(created)

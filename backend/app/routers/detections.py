@@ -28,6 +28,12 @@ def list_detections(
     date_to: Optional[datetime] = None,
     limit: int = 200,
     offset: int = 0,
+    defects_only: bool = Query(
+        True,
+        description="If true (default), excludes non-defect/passing classifications "
+        "(e.g. a 'good banana' class) — set false to include everything, e.g. for "
+        "Historical Archive's full audit trail.",
+    ),
 ):
     items = detections_repo.filter_detections(
         search=search,
@@ -35,6 +41,7 @@ def list_detections(
         defect_type=defect_type,
         date_from=date_from,
         date_to=date_to,
+        defects_only=defects_only,
     )
     total = len(items)
     page = items[offset: offset + limit]
@@ -116,19 +123,20 @@ def export_csv(
     search: Optional[str] = None,
     status: Optional[str] = None,
     defect_type: Optional[str] = None,
+    defects_only: bool = False,
 ):
     items = detections_repo.filter_detections(
-        search=search, status=status, defect_type=defect_type
+        search=search, status=status, defect_type=defect_type, defects_only=defects_only
     )
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow([
-        "id", "timestamp", "defectType", "confidence",
+        "id", "timestamp", "defectType", "isDefect", "confidence",
         "operatorConfirmed", "removalStatus", "source",
     ])
     for d in items:
         writer.writerow([
-            d["id"], d["timestamp"], d["defectType"], d["confidence"],
+            d["id"], d["timestamp"], d["defectType"], d.get("isDefect", True), d["confidence"],
             d.get("operatorConfirmed"), d.get("removalStatus"), d.get("source"),
         ])
     buf.seek(0)

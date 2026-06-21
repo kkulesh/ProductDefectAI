@@ -148,6 +148,9 @@ export function ReportsAnalytics() {
         <Card>
           <CardHeader>
             <CardTitle>Defect Type Distribution</CardTitle>
+            <p className="text-sm text-gray-500">
+              All classes your model detects, including non-defect/passing classes (e.g. "good ___")
+            </p>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -163,7 +166,7 @@ export function ReportsAnalytics() {
                   dataKey="value"
                 >
                   {distribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell key={`cell-${index}`} fill={entry.color} fillOpacity={entry.isDefect ? 1 : 0.45} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -173,8 +176,14 @@ export function ReportsAnalytics() {
               {distribution.map((item) => (
                 <div key={item.name} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: item.color, opacity: item.isDefect ? 1 : 0.45 }}
+                    ></div>
                     <span className="text-gray-700">{item.name}</span>
+                    {!item.isDefect && (
+                      <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">pass</span>
+                    )}
                   </div>
                   <span className="text-gray-900 font-semibold">{item.value}</span>
                 </div>

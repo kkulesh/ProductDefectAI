@@ -16,9 +16,9 @@ def daily_stats(days: int = Query(30, ge=1, le=365)):
 
 @router.get("/defect-distribution")
 def defect_distribution():
-    # detections_repo.defect_type_distribution() always returns every known
-    # defect type (even at 0 count) in a fixed order with fixed colors, so
-    # no separate fallback list is needed here.
+    # Returns only class names that actually appear in real detection
+    # data — whatever your trained model's classes are — not a hardcoded
+    # assumed list of defect types.
     return detections_repo.defect_type_distribution()
 
 

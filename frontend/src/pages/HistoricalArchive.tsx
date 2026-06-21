@@ -18,7 +18,7 @@ export function HistoricalArchive() {
   const [selectedDefectType, setSelectedDefectType] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState({ total: 0, confirmed: 0, pending: 0 });
+  const [stats, setStats] = useState({ total: 0, confirmed: 0, pending: 0, nonDefectCount: 0 });
   // Defect type filter options are derived from real detection data
   // (whatever classes the deployed/trained model has actually produced),
   // rather than a hardcoded list that may not match what's really there.
@@ -35,16 +35,26 @@ export function HistoricalArchive() {
           date_from: dateRange?.from?.toISOString(),
           date_to: dateRange?.to?.toISOString(),
           limit: 24,
+          // Historical Archive is the full audit trail — it should include
+          // passing classifications (e.g. a "good banana" class) alongside
+          // defects, not just flagged defects like Defect Review does.
+          defects_only: false,
         }),
         detectionsApi.stats(),
         detectionsApi.distribution(),
       ]);
       setDetections(list.items);
       setTotal(list.total);
-      setStats({ total: statsResp.total, confirmed: statsResp.confirmed, pending: statsResp.pending });
+      setStats({
+        total: statsResp.total + statsResp.nonDefectCount,
+        confirmed: statsResp.confirmed,
+        pending: statsResp.pending,
+        nonDefectCount: statsResp.nonDefectCount,
+      });
       // Only show filter buttons for types that actually have records —
       // an empty-count filter button is dead clutter, and a custom-trained
-      // model's class names will show up here automatically.
+      // model's class names (defect or passing) will show up here
+      // automatically.
       setAvailableTypes(distribution.filter((d) => d.value > 0));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load archive");
@@ -80,7 +90,9 @@ export function HistoricalArchive() {
     <div className="p-8 space-y-6">
       <div>
         <h1 className="font-bold text-3xl text-gray-900">Historical Archive</h1>
-        <p className="text-gray-600 mt-1">Browse and manage past detections</p>
+        <p className="text-gray-600 mt-1">
+          Browse and manage past detections — full audit trail, including passing classifications
+        </p>
       </div>
 
       {error && (
@@ -90,7 +102,7 @@ export function HistoricalArchive() {
       )}
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
@@ -115,6 +127,12 @@ export function HistoricalArchive() {
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-orange-600">{stats.pending}</div>
             <div className="text-sm text-gray-600">Pending Review</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-cyan-600">{stats.nonDefectCount}</div>
+            <div className="text-sm text-gray-600">Passing Classifications</div>
           </CardContent>
         </Card>
       </div>
@@ -186,14 +204,15 @@ export function HistoricalArchive() {
                 >
                   <span
                     className="inline-block w-2 h-2 rounded-full mr-1.5"
-                    style={{ backgroundColor: type.color }}
+                    style={{ backgroundColor: type.color, opacity: type.isDefect ? 1 : 0.5 }}
                   />
                   {type.name}
+                  {!type.isDefect && <span className="ml-1 text-[10px] text-gray-400">(pass)</span>}
                 </Button>
               ))}
               {availableTypes.length === 0 && (
                 <span className="text-sm text-gray-400 self-center">
-                  No defect types recorded yet
+                  No records yet
                 </span>
               )}
             </div>
@@ -227,79 +246,86 @@ export function HistoricalArchive() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {detections.map((detection) => (
-            <Card key={detection.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="relative">
-                {detection.imageUrl ? (
-                  <img
-                    src={mediaUrl(detection.imageUrl)}
-                    alt={`Detection ${detection.id}`}
-                    className="w-full h-48 object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-gray-100" />
-                )}
-                <div className="absolute top-2 right-2">
-                  <Badge variant={detection.operatorConfirmed === true ? "default" : "secondary"}>
-                    {(detection.confidence * 100).toFixed(0)}%
-                  </Badge>
-                </div>
-              </div>
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm text-gray-600">{detection.id}</span>
-                  {detection.operatorConfirmed === true && (
-                    <Badge className="bg-green-500 text-xs">Confirmed</Badge>
+          {detections.map((detection) => {
+            const isPassing = detection.isDefect === false;
+            return (
+              <Card
+                key={detection.id}
+                className={`overflow-hidden hover:shadow-lg transition-shadow ${isPassing ? "ring-1 ring-cyan-200" : ""}`}
+              >
+                <div className="relative">
+                  {detection.imageUrl ? (
+                    <img
+                      src={mediaUrl(detection.imageUrl)}
+                      alt={`Detection ${detection.id}`}
+                      className="w-full h-48 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-gray-100" />
                   )}
-                  {detection.operatorConfirmed === false && (
-                    <Badge variant="destructive" className="text-xs">Rejected</Badge>
-                  )}
-                </div>
-
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">{detection.defectType}</div>
-                  <div className="text-xs text-gray-500">
-                    {new Date(detection.timestamp).toLocaleString()}
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    {isPassing && <Badge className="bg-cyan-500 text-xs">Pass</Badge>}
+                    <Badge variant={detection.operatorConfirmed === true ? "default" : "secondary"}>
+                      {(detection.confidence * 100).toFixed(0)}%
+                    </Badge>
                   </div>
                 </div>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-sm text-gray-600">{detection.id}</span>
+                    {!isPassing && detection.operatorConfirmed === true && (
+                      <Badge className="bg-green-500 text-xs">Confirmed</Badge>
+                    )}
+                    {!isPassing && detection.operatorConfirmed === false && (
+                      <Badge variant="destructive" className="text-xs">Rejected</Badge>
+                    )}
+                  </div>
 
-                <div className="flex items-center gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => detection.imageUrl && window.open(mediaUrl(detection.imageUrl), "_blank")}
-                  >
-                    <Eye className="w-3 h-3 mr-1" />
-                    View
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => {
-                      if (!detection.imageUrl) return;
-                      const a = document.createElement("a");
-                      a.href = mediaUrl(detection.imageUrl);
-                      a.download = `${detection.id}.jpg`;
-                      a.click();
-                    }}
-                  >
-                    <Download className="w-3 h-3 mr-1" />
-                    Save
-                  </Button>
-                </div>
-                {detection.sourceImageUrl && detection.sourceImageUrl !== detection.imageUrl && (
-                  <button
-                    className="text-xs text-blue-600 hover:underline w-full text-center pt-1"
-                    onClick={() => window.open(mediaUrl(detection.sourceImageUrl!), "_blank")}
-                  >
-                    View full source image
-                  </button>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{detection.defectType}</div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(detection.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => detection.imageUrl && window.open(mediaUrl(detection.imageUrl), "_blank")}
+                    >
+                      <Eye className="w-3 h-3 mr-1" />
+                      View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        if (!detection.imageUrl) return;
+                        const a = document.createElement("a");
+                        a.href = mediaUrl(detection.imageUrl);
+                        a.download = `${detection.id}.jpg`;
+                        a.click();
+                      }}
+                    >
+                      <Download className="w-3 h-3 mr-1" />
+                      Save
+                    </Button>
+                  </div>
+                  {detection.sourceImageUrl && detection.sourceImageUrl !== detection.imageUrl && (
+                    <button
+                      className="text-xs text-blue-600 hover:underline w-full text-center pt-1"
+                      onClick={() => window.open(mediaUrl(detection.sourceImageUrl!), "_blank")}
+                    >
+                      View full source image
+                    </button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

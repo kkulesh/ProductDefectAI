@@ -19,7 +19,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from .. import config
 from ..schemas import BoundingBox, Detection, RemovalStatus, VideoFrameResult, VideoProcessResult
 from ..services import inference, media_storage
-from ..storage import daily_stats_repo, detections_repo
+from ..storage import class_policy_repo, daily_stats_repo, detections_repo
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
@@ -49,6 +49,7 @@ async def upload_image(
         thumbnail_url = media_storage.save_detection_thumbnail(
             dest_path, box.x, box.y, box.width, box.height
         )
+        is_defect = class_policy_repo.is_defect_class(box.label)
         det = Detection(
             defectType=box.label,
             confidence=box.confidence,
@@ -59,9 +60,11 @@ async def upload_image(
             source="upload",
             width=box.width * 100,
             height=box.height * 100,
+            isDefect=is_defect,
         )
         created.append(det)
-        daily_stats_repo.record_defect_found()
+        if is_defect:
+            daily_stats_repo.record_defect_found()
 
     if created:
         detections_repo.add_detections_bulk(created)
@@ -155,6 +158,7 @@ async def process_video(
                 thumbnail_url = media_storage.save_detection_thumbnail_from_array(
                     frame, box.x, box.y, box.width, box.height
                 )
+                is_defect = class_policy_repo.is_defect_class(box.label)
                 det = Detection(
                     defectType=box.label,
                     confidence=box.confidence,
@@ -166,9 +170,11 @@ async def process_video(
                     width=box.width * 100,
                     height=box.height * 100,
                     frameIndex=processed_frames,
+                    isDefect=is_defect,
                 )
                 created.append(det)
-                daily_stats_repo.record_defect_found()
+                if is_defect:
+                    daily_stats_repo.record_defect_found()
                 total_detections += 1
 
             frame_results.append(VideoFrameResult(

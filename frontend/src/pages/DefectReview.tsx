@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import { Check, X, Trash2, Download, Search, Loader2 } from "lucide-react";
+import { Check, X, Trash2, Download, Search, Loader2, Eye, EyeOff } from "lucide-react";
 import { detectionsApi, mediaUrl, type Detection } from "../lib/api";
 
 type FilterStatus = "all" | "pending" | "confirmed" | "rejected";
@@ -20,7 +20,14 @@ export function DefectReview() {
   const [detections, setDetections] = useState<Detection[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState<FilterStatus>("all");
-  const [stats, setStats] = useState({ total: 0, pending: 0, confirmed: 0, rejected: 0 });
+  const [showPassing, setShowPassing] = useState(false);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    confirmed: 0,
+    rejected: 0,
+    nonDefectCount: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -34,6 +41,12 @@ export function DefectReview() {
           search: searchTerm || undefined,
           status: filter,
           limit: 20,
+          // Defect Review's primary job is reviewing flagged defects, so it
+          // defaults to defects only — but passing classifications (e.g. a
+          // "good banana" class) are still real detections the model made
+          // and saved, so they can be shown on request rather than being
+          // structurally invisible.
+          defects_only: !showPassing,
         }),
         detectionsApi.stats(),
       ]);
@@ -44,7 +57,7 @@ export function DefectReview() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, filter]);
+  }, [searchTerm, filter, showPassing]);
 
   useEffect(() => {
     const debounce = setTimeout(loadDetections, 300);
@@ -109,7 +122,7 @@ export function DefectReview() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
@@ -132,6 +145,12 @@ export function DefectReview() {
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
             <div className="text-sm text-gray-600">Rejected (False Positive)</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-blue-600">{stats.nonDefectCount}</div>
+            <div className="text-sm text-gray-600">Passing Classifications</div>
           </CardContent>
         </Card>
       </div>
@@ -169,6 +188,15 @@ export function DefectReview() {
                   {f.charAt(0).toUpperCase() + f.slice(1)}
                 </Button>
               ))}
+              <Button
+                variant={showPassing ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowPassing((p) => !p)}
+                title="Include passing classifications (e.g. good fruit) alongside defects"
+              >
+                {showPassing ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
+                {showPassing ? "Showing Passing Too" : "Defects Only"}
+              </Button>
             </div>
           </div>
 
@@ -178,7 +206,7 @@ export function DefectReview() {
                 <TableRow>
                   <TableHead>Detection ID</TableHead>
                   <TableHead>Image</TableHead>
-                  <TableHead>Defect Type</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Confidence</TableHead>
                   <TableHead>Timestamp</TableHead>
                   <TableHead>Status</TableHead>
@@ -202,82 +230,108 @@ export function DefectReview() {
                     </TableCell>
                   </TableRow>
                 )}
-                {detections.map((detection) => (
-                  <TableRow key={detection.id}>
-                    <TableCell className="font-mono text-sm">{detection.id}</TableCell>
-                    <TableCell>
-                      {detection.imageUrl ? (
-                        <img
-                          src={mediaUrl(detection.imageUrl)}
-                          alt={`Defect ${detection.id}`}
-                          title={detection.sourceImageUrl ? "Click to view full source image" : undefined}
-                          className={`w-16 h-12 object-cover rounded ${
-                            detection.sourceImageUrl ? "cursor-pointer hover:opacity-80" : ""
-                          }`}
-                          onClick={() =>
-                            detection.sourceImageUrl &&
-                            window.open(mediaUrl(detection.sourceImageUrl), "_blank")
-                          }
-                        />
-                      ) : (
-                        <div className="w-16 h-12 bg-gray-100 rounded" />
-                      )}
-                    </TableCell>
-                    <TableCell>{detection.defectType}</TableCell>
-                    <TableCell>
-                      <Badge variant={detection.confidence > 0.9 ? "default" : "secondary"}>
-                        {(detection.confidence * 100).toFixed(1)}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {new Date(detection.timestamp).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      {detection.operatorConfirmed === null && (
-                        <Badge variant="outline">Pending</Badge>
-                      )}
-                      {detection.operatorConfirmed === true && (
-                        <Badge className="bg-green-500">Confirmed</Badge>
-                      )}
-                      {detection.operatorConfirmed === false && (
-                        <Badge variant="destructive">Rejected</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={detection.removalStatus === "simulated" ? "default" : "outline"}>
-                        {detection.removalStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleApprove(detection.id)}
-                          disabled={detection.operatorConfirmed === true || actionLoadingId === detection.id}
-                        >
-                          <Check className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleReject(detection.id)}
-                          disabled={detection.operatorConfirmed === false || actionLoadingId === detection.id}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleMarkForRemoval(detection.id)}
-                          disabled={detection.removalStatus === "simulated" || actionLoadingId === detection.id}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {detections.map((detection) => {
+                  const isPassing = detection.isDefect === false;
+                  return (
+                    <TableRow key={detection.id} className={isPassing ? "bg-blue-50/40" : undefined}>
+                      <TableCell className="font-mono text-sm">{detection.id}</TableCell>
+                      <TableCell>
+                        {detection.imageUrl ? (
+                          <img
+                            src={mediaUrl(detection.imageUrl)}
+                            alt={`Detection ${detection.id}`}
+                            title={detection.sourceImageUrl ? "Click to view full source image" : undefined}
+                            className={`w-16 h-12 object-cover rounded ${
+                              detection.sourceImageUrl ? "cursor-pointer hover:opacity-80" : ""
+                            }`}
+                            onClick={() =>
+                              detection.sourceImageUrl &&
+                              window.open(mediaUrl(detection.sourceImageUrl), "_blank")
+                            }
+                          />
+                        ) : (
+                          <div className="w-16 h-12 bg-gray-100 rounded" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {detection.defectType}
+                          {isPassing && (
+                            <Badge variant="outline" className="text-xs text-blue-700 border-blue-300">
+                              pass
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={detection.confidence > 0.9 ? "default" : "secondary"}>
+                          {(detection.confidence * 100).toFixed(1)}%
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {new Date(detection.timestamp).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        {isPassing ? (
+                          <span className="text-xs text-gray-400">—</span>
+                        ) : (
+                          <>
+                            {detection.operatorConfirmed === null && (
+                              <Badge variant="outline">Pending</Badge>
+                            )}
+                            {detection.operatorConfirmed === true && (
+                              <Badge className="bg-green-500">Confirmed</Badge>
+                            )}
+                            {detection.operatorConfirmed === false && (
+                              <Badge variant="destructive">Rejected</Badge>
+                            )}
+                          </>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isPassing ? (
+                          <span className="text-xs text-gray-400">—</span>
+                        ) : (
+                          <Badge variant={detection.removalStatus === "simulated" ? "default" : "outline"}>
+                            {detection.removalStatus}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isPassing ? (
+                          <span className="text-xs text-gray-400">No action needed</span>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleApprove(detection.id)}
+                              disabled={detection.operatorConfirmed === true || actionLoadingId === detection.id}
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleReject(detection.id)}
+                              disabled={detection.operatorConfirmed === false || actionLoadingId === detection.id}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleMarkForRemoval(detection.id)}
+                              disabled={detection.removalStatus === "simulated" || actionLoadingId === detection.id}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

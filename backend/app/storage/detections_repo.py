@@ -9,6 +9,7 @@ from typing import Optional
 
 from .. import config
 from ..schemas import Detection, DetectionUpdate
+from . import class_policy_repo
 from .json_store import read_json, update_json, write_json
 
 
@@ -94,10 +95,13 @@ def filter_detections(
     defect_type: Optional[str] = None,
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
+    defects_only: bool = True,
 ) -> list[dict]:
     items = list_detections()
 
     def matches(d: dict) -> bool:
+        if defects_only and not d.get("isDefect", True):
+            return False
         if search:
             s = search.lower()
             if s not in d["id"].lower() and s not in d["defectType"].lower():
@@ -126,46 +130,66 @@ def filter_detections(
 
 def stats_summary() -> dict:
     items = list_detections()
-    total = len(items)
-    pending = sum(1 for d in items if d.get("operatorConfirmed") is None)
-    confirmed = sum(1 for d in items if d.get("operatorConfirmed") is True)
-    rejected = sum(1 for d in items if d.get("operatorConfirmed") is False)
-    simulated = sum(1 for d in items if d.get("removalStatus") == "simulated")
+    defect_items = [d for d in items if d.get("isDefect", True)]
+    non_defect_items = [d for d in items if not d.get("isDefect", True)]
+
+    total = len(defect_items)
+    pending = sum(1 for d in defect_items if d.get("operatorConfirmed") is None)
+    confirmed = sum(1 for d in defect_items if d.get("operatorConfirmed") is True)
+    rejected = sum(1 for d in defect_items if d.get("operatorConfirmed") is False)
+    simulated = sum(1 for d in defect_items if d.get("removalStatus") == "simulated")
     return {
         "total": total,
         "pending": pending,
         "confirmed": confirmed,
         "rejected": rejected,
         "virtuallyRemoved": simulated,
+        "nonDefectCount": len(non_defect_items),
     }
 
 
+_PALETTE = [
+    "#ef4444", "#f59e0b", "#3b82f6", "#8b5cf6", "#ec4899",
+    "#10b981", "#06b6d4", "#f97316", "#84cc16", "#6366f1",
+]
+
+
 def defect_type_distribution() -> list[dict]:
+    """
+    Returns one entry per class name that has actually appeared in real
+    detections — not a hardcoded list of assumed defect types. Whatever
+    classes your trained model actually uses (Crack/Dent/... or
+    good/bad banana, or anything else) are exactly what show up here, in
+    descending count order, each with a stable color assigned by first
+    appearance and an isDefect flag (from class_policy_repo) so the
+    frontend can visually distinguish non-defect/passing classes from
+    real defects in this chart rather than implying everything shown is
+    a defect.
+    """
     items = list_detections()
-    # Fixed order + colors matching the original design — always show all
-    # known defect types (even at 0) so the legend/pie don't reshuffle or
-    # drop categories as detection counts change.
-    ordered_types = [
-        ("Crack", "#ef4444"),
-        ("Discoloration", "#f59e0b"),
-        ("Dent", "#3b82f6"),
-        ("Surface Defect", "#8b5cf6"),
-        ("Shape Defect", "#ec4899"),
-    ]
     counts: dict[str, int] = {}
     for d in items:
         counts[d["defectType"]] = counts.get(d["defectType"], 0) + 1
 
-    result = [
-        {"name": name, "value": counts.get(name, 0), "color": color}
-        for name, color in ordered_types
-    ]
-    # Any defect type encountered that isn't in the known list (e.g. a
-    # custom-trained model with different class names) gets appended with
-    # a fallback color rather than silently dropped.
-    known_names = {name for name, _ in ordered_types}
-    extra_names = sorted(n for n in counts if n not in known_names)
-    for name in extra_names:
-        result.append({"name": name, "value": counts[name], "color": "#6b7280"})
+    # Stable color assignment: order of first appearance in the data
+    # (oldest detection first), not alphabetical or hardcoded, so colors
+    # don't reshuffle as new classes appear over time.
+    seen_order: list[str] = []
+    for d in reversed(items):  # items is newest-first; walk oldest-first
+        name = d["defectType"]
+        if name not in seen_order:
+            seen_order.append(name)
 
+    color_map = {name: _PALETTE[i % len(_PALETTE)] for i, name in enumerate(seen_order)}
+    policy = class_policy_repo.get_policy()
+
+    result = [
+        {
+            "name": name,
+            "value": count,
+            "color": color_map[name],
+            "isDefect": policy.get(name, True),
+        }
+        for name, count in sorted(counts.items(), key=lambda kv: -kv[1])
+    ]
     return result

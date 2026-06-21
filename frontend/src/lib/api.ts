@@ -46,6 +46,7 @@ export interface Detection {
   width?: number | null;
   height?: number | null;
   frameIndex?: number | null;
+  isDefect: boolean;
 }
 
 export interface DetectionListResponse {
@@ -67,6 +68,7 @@ export interface DefectDistributionItem {
   name: string;
   value: number;
   color: string;
+  isDefect: boolean;
 }
 
 export interface ConfidenceTrendPoint {
@@ -164,12 +166,20 @@ export const detectionsApi = {
     date_to?: string;
     limit?: number;
     offset?: number;
+    defects_only?: boolean;
   } = {}) =>
     fetch(`${API_BASE}/api/detections${qs(params)}`).then((r) => handleResponse<DetectionListResponse>(r)),
 
   stats: () =>
     fetch(`${API_BASE}/api/detections/stats`).then((r) =>
-      handleResponse<{ total: number; pending: number; confirmed: number; rejected: number; virtuallyRemoved: number }>(r)
+      handleResponse<{
+        total: number;
+        pending: number;
+        confirmed: number;
+        rejected: number;
+        virtuallyRemoved: number;
+        nonDefectCount: number;
+      }>(r)
     ),
 
   distribution: () =>
@@ -304,6 +314,18 @@ export const settingsApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(system),
     }).then((r) => handleResponse<AppSettings>(r)),
+
+  // Class policy: which detected class names count as actual defects vs
+  // non-defect/passing classes (e.g. "good banana" vs "bad banana").
+  getClassPolicy: () =>
+    fetch(`${API_BASE}/api/settings/class-policy`).then((r) => handleResponse<Record<string, boolean>>(r)),
+
+  updateClassPolicy: (updates: Record<string, boolean>) =>
+    fetch(`${API_BASE}/api/settings/class-policy`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates }),
+    }).then((r) => handleResponse<Record<string, boolean>>(r)),
 };
 
 // ---------------------------------------------------------------------

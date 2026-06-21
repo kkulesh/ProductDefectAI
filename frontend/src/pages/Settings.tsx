@@ -6,7 +6,7 @@ import { Slider } from "../components/ui/slider";
 import { Switch } from "../components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Separator } from "../components/ui/separator";
-import { Save, Loader2, CheckCircle2 } from "lucide-react";
+import { Save, Loader2, CheckCircle2, Tags } from "lucide-react";
 import {
   settingsApi,
   modelsApi,
@@ -47,6 +47,8 @@ export function Settings() {
   const [modelInfo, setModelInfo] = useState<{ currentModel: string; usingCustomModel: boolean } | null>(null);
   const [savingDetection, setSavingDetection] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
+  const [classPolicy, setClassPolicy] = useState<Record<string, boolean>>({});
+  const [savingClassPolicy, setSavingClassPolicy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,12 +56,17 @@ export function Settings() {
       setLoading(true);
       setError(null);
       try {
-        const [s, models] = await Promise.all([settingsApi.get(), modelsApi.list()]);
+        const [s, models, policy] = await Promise.all([
+          settingsApi.get(),
+          modelsApi.list(),
+          settingsApi.getClassPolicy(),
+        ]);
         if (cancelled) return;
         setDetection(s.detection);
         setNotifications(s.notifications);
         setSystem(s.system);
         setModelInfo({ currentModel: models.currentModel, usingCustomModel: models.usingCustomModel });
+        setClassPolicy(policy);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load settings");
       } finally {
@@ -125,6 +132,21 @@ export function Settings() {
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to check for model updates");
+    }
+  };
+
+  const toggleClassPolicy = async (className: string, isDefect: boolean) => {
+    const previous = classPolicy;
+    setClassPolicy((p) => ({ ...p, [className]: isDefect }));
+    setSavingClassPolicy(true);
+    try {
+      const updated = await settingsApi.updateClassPolicy({ [className]: isDefect });
+      setClassPolicy(updated);
+    } catch (e) {
+      setClassPolicy(previous); // revert on failure
+      setError(e instanceof Error ? e.message : "Failed to update class policy");
+    } finally {
+      setSavingClassPolicy(false);
     }
   };
 
@@ -429,6 +451,56 @@ export function Settings() {
                 <Button variant="outline" onClick={checkForUpdates}>Check for Updates</Button>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Class Policy */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Tags className="w-4 h-4" />
+              Class Policy
+            </CardTitle>
+            <CardDescription>
+              Mark which detected class names count as actual defects. Classes with names like
+              "good ___", "ok", "pass", or "healthy" are auto-marked as non-defect when first
+              seen — correct that here if it guessed wrong. Non-defect classes are excluded from
+              defect-rate stats, the review queue, and the virtual rejection simulation, but
+              still appear in the Defect Type Distribution chart for visibility.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {Object.keys(classPolicy).length === 0 ? (
+              <p className="text-sm text-gray-500">
+                No classes detected yet. Once you run detection (upload, camera, or video), every
+                class name your model produces will show up here automatically.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {Object.entries(classPolicy)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([className, isDefect]) => (
+                    <div key={className} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                      <div>
+                        <span className="text-sm font-medium text-gray-900">{className}</span>
+                        <p className="text-xs text-gray-500">
+                          {isDefect ? "Counted as a defect" : "Treated as a passing/non-defect classification"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-16 text-right">
+                          {isDefect ? "Defect" : "Pass"}
+                        </span>
+                        <Switch
+                          checked={isDefect}
+                          onCheckedChange={(checked) => toggleClassPolicy(className, checked)}
+                          disabled={savingClassPolicy}
+                        />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

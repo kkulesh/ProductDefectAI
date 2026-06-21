@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 from ..schemas import AppSettings, DetectionSettings, NotificationSettings, SystemSettings
-from ..storage import settings_repo
+from ..storage import class_policy_repo, settings_repo
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -38,3 +39,25 @@ def update_system_settings(system: SystemSettings):
     current = settings_repo.get_settings()
     current.system = system
     return settings_repo.save_settings(current)
+
+
+# ---------------------------------------------------------------------
+# Class policy: which detected class names count as actual defects vs
+# non-defect/"passing" classes (e.g. a model with both "good banana" and
+# "bad banana"). New class names are auto-classified by a keyword
+# heuristic the first time they're detected; these endpoints let the
+# user see and correct that classification.
+# ---------------------------------------------------------------------
+
+class ClassPolicyUpdate(BaseModel):
+    updates: dict[str, bool]  # class_name -> is_defect
+
+
+@router.get("/class-policy")
+def get_class_policy():
+    return class_policy_repo.get_policy()
+
+
+@router.patch("/class-policy")
+def update_class_policy(payload: ClassPolicyUpdate):
+    return class_policy_repo.set_policies(payload.updates)
