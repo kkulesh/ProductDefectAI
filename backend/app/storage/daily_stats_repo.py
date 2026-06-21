@@ -19,8 +19,10 @@ def list_daily_stats() -> list[dict]:
 
 def record_inspection(count: int = 1) -> dict:
     """
-    Call once per image/frame actually run through the model — this is
-    what 'totalInspected' means: an item was inspected, defect or not.
+    Call once per item actually classified by the model (every individual
+    detected box — good or bad), so 'totalInspected' means "how many
+    fruit/items were inspected", not "how many images were uploaded". One
+    image can contain many fruit; each one counts here.
     """
     today_str = datetime.utcnow().date().isoformat()
 

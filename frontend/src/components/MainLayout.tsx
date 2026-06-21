@@ -25,7 +25,7 @@ export function MainLayout() {
     { name: "Defect Review", path: "/review", icon: ClipboardList },
     { name: "Virtual Rejection", path: "/rejection", icon: Trash2 },
     { name: "Reports & Analytics", path: "/reports", icon: BarChart3 },
-    { name: "Settings", path: "/settings", icon: Settings },
+    // { name: "Settings", path: "/settings", icon: Settings },
     { name: "Historical Archive", path: "/archive", icon: Archive },
   ];
 

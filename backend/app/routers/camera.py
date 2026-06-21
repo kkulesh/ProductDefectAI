@@ -129,11 +129,6 @@ async def camera_stream(websocket: WebSocket):
                 await websocket.send_json({"error": f"inference failed: {e}"})
                 continue
 
-            # Every frame that actually gets run through the model counts
-            # as one inspection, regardless of whether anything was found
-            # or whether this particular detection gets persisted below.
-            daily_stats_repo.record_inspection()
-
             # Tag each live box with whether its class is an actual defect
             # (vs a non-defect/"passing" class like "good banana") so the
             # frontend overlay can style them differently — registers any
@@ -179,6 +174,13 @@ async def camera_stream(websocket: WebSocket):
                         isDefect=is_defect,
                     )
                     created.append(det)
+                    # Every persisted item (good or bad) counts toward
+                    # "Total Inspected"; only actual defects count toward
+                    # "Defects Detected". Counted on persist (not every WS
+                    # frame) so this matches what's actually saved, rather
+                    # than over-counting frames that never get persisted
+                    # due to the throttle above.
+                    daily_stats_repo.record_inspection()
                     if is_defect:
                         daily_stats_repo.record_defect_found()
 

@@ -137,3 +137,48 @@ def run_inference_on_array(frame, confidence_threshold: float = 0.5) -> tuple[li
         ))
 
     return boxes, elapsed_ms
+
+
+def run_inference_on_batch(
+    frames: list, confidence_threshold: float = 0.5
+) -> tuple[list[list[BoundingBox]], float]:
+    """
+    Run YOLO inference on a batch of in-memory BGR frames in a single
+    model call, used by video processing to get better throughput than
+    calling run_inference_on_array once per frame — Ultralytics natively
+    accepts a list of frames and processes them more efficiently than
+    the same number of separate predict() calls (especially on GPU,
+    where per-call overhead dominates at small batch sizes).
+
+    Returns (list of per-frame box lists, total elapsed ms for the whole
+    batch). The outer list has the same length and order as `frames`.
+    """
+    if not frames:
+        return [], 0.0
+
+    model = get_model()
+    start = time.time()
+    results = model.predict(source=frames, conf=confidence_threshold, verbose=False)
+    elapsed_ms = (time.time() - start) * 1000
+
+    all_boxes: list[list[BoundingBox]] = []
+    for result in results:
+        img_h, img_w = result.orig_shape
+        names = result.names
+        boxes: list[BoundingBox] = []
+        for box in result.boxes:
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
+            cls_id = int(box.cls[0].item())
+            conf = float(box.conf[0].item())
+            label = names.get(cls_id, str(cls_id)) if isinstance(names, dict) else str(cls_id)
+            boxes.append(BoundingBox(
+                label=label,
+                confidence=conf,
+                x=x1 / img_w,
+                y=y1 / img_h,
+                width=(x2 - x1) / img_w,
+                height=(y2 - y1) / img_h,
+            ))
+        all_boxes.append(boxes)
+
+    return all_boxes, elapsed_ms

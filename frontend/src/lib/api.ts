@@ -141,6 +141,11 @@ export interface VideoProcessResult {
   detectionCount: number;
   usingCustomModel: boolean;
   warning: string | null;
+  totalVideoFrames: number;
+  videoDurationSeconds: number;
+  coveredDurationSeconds: number;
+  truncated: boolean;
+  inferenceMsTotal: number;
 }
 
 // ---------------------------------------------------------------------
@@ -240,13 +245,21 @@ export const uploadApi = {
 
   processVideo: (
     filename: string,
-    options: { confidenceThreshold?: number; sampleEveryNFrames?: number; maxFrames?: number } = {}
+    options: {
+      confidenceThreshold?: number;
+      targetFps?: number;
+      maxSeconds?: number;
+      batchSize?: number;
+    } = {}
   ) => {
     const form = new FormData();
     form.append("filename", filename);
     form.append("confidence_threshold", String(options.confidenceThreshold ?? 0.5));
-    form.append("sample_every_n_frames", String(options.sampleEveryNFrames ?? 15));
-    form.append("max_frames", String(options.maxFrames ?? 60));
+    form.append("target_fps", String(options.targetFps ?? 4));
+    if (options.maxSeconds !== undefined) {
+      form.append("max_seconds", String(options.maxSeconds));
+    }
+    form.append("batch_size", String(options.batchSize ?? 8));
     return fetch(`${API_BASE}/api/upload/video/process`, { method: "POST", body: form }).then((r) =>
       handleResponse<VideoProcessResult>(r)
     );

@@ -44,6 +44,13 @@ export function Dashboard() {
   const [isDetecting, setIsDetecting] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [modelWarning, setModelWarning] = useState<string | null>(null);
+  const [videoTargetFps, setVideoTargetFps] = useState([4]);
+  const [videoCoverage, setVideoCoverage] = useState<{
+    videoDurationSeconds: number;
+    coveredDurationSeconds: number;
+    truncated: boolean;
+    framesProcessed: number;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,16 +115,22 @@ export function Dashboard() {
 
     setIsDetecting(true);
     setUploadError(null);
+    setVideoCoverage(null);
     try {
       if (isVideo) {
         const uploaded = await uploadApi.video(uploadedFile);
         const processed = await uploadApi.processVideo(uploaded.filename, {
           confidenceThreshold: confidenceThreshold[0] / 100,
-          sampleEveryNFrames: 15,
-          maxFrames: 40,
+          targetFps: videoTargetFps[0],
         });
         setVideoFrames(processed.frames);
         setModelWarning(processed.warning);
+        setVideoCoverage({
+          videoDurationSeconds: processed.videoDurationSeconds,
+          coveredDurationSeconds: processed.coveredDurationSeconds,
+          truncated: processed.truncated,
+          framesProcessed: processed.framesProcessed,
+        });
       } else {
         const result = await uploadApi.image(uploadedFile, confidenceThreshold[0] / 100);
         setImageDetections(result.detections);
@@ -344,10 +357,32 @@ export function Dashboard() {
                 {uploadError}
               </div>
             )}
+            {isVideo && localPreviewUrl && !isDetecting && (
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Analysis rate: {videoTargetFps[0]} fps</Label>
+                  <span className="text-xs text-gray-500">Higher = denser coverage, slower</span>
+                </div>
+                <Slider
+                  value={videoTargetFps}
+                  onValueChange={setVideoTargetFps}
+                  min={1}
+                  max={15}
+                  step={1}
+                />
+              </div>
+            )}
             {isVideo && videoFrames.length === 0 && localPreviewUrl && !isDetecting && (
               <p className="mt-2 text-xs text-gray-500">
-                Click "Run Detection" to sample frames from this video and step through them with bounding boxes.
+                Click "Run Detection" to sample frames from this video at {videoTargetFps[0]} fps and step through them with bounding boxes.
               </p>
+            )}
+            {videoCoverage && (
+              <div className={`mt-3 text-xs rounded px-3 py-2 ${videoCoverage.truncated ? "bg-amber-50 text-amber-800 border border-amber-200" : "bg-gray-50 text-gray-600 border border-gray-200"}`}>
+                Analyzed {videoCoverage.coveredDurationSeconds.toFixed(1)}s of {videoCoverage.videoDurationSeconds.toFixed(1)}s
+                ({videoCoverage.framesProcessed} frames sampled)
+                {videoCoverage.truncated && " — coverage was limited, not the full video"}
+              </div>
             )}
           </CardContent>
         </Card>

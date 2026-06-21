@@ -139,3 +139,10 @@ class VideoProcessResult(BaseModel):
     detectionCount: int
     usingCustomModel: bool
     warning: Optional[str] = None
+    # Coverage reporting: how much of the actual video was analyzed, so
+    # long videos don't get silently truncated without the user knowing.
+    totalVideoFrames: int = 0
+    videoDurationSeconds: float = 0.0
+    coveredDurationSeconds: float = 0.0
+    truncated: bool = False
+    inferenceMsTotal: float = 0.0

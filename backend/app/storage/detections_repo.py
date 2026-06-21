@@ -153,41 +153,63 @@ _PALETTE = [
     "#10b981", "#06b6d4", "#f97316", "#84cc16", "#6366f1",
 ]
 
+# Fixed colors for the 6 fruit quality classes currently in use, so each
+# class always renders the same color regardless of detection order.
+# Uses the original app palette (red/amber/blue/purple/pink) plus green
+# as the 6th color, assigned in alphabetical class-name order — which
+# conveniently groups all "bad ___" classes before all "good ___" classes.
+_FIXED_CLASS_COLORS = {
+    "bad apple": "#ef4444",     # red
+    "bad banana": "#f59e0b",    # amber
+    "bad orange": "#3b82f6",    # blue
+    "good apple": "#8b5cf6",    # purple
+    "good banana": "#ec4899",   # pink
+    "good orange": "#22c55e",   # green
+}
+
 
 def defect_type_distribution() -> list[dict]:
     """
     Returns one entry per class name that has actually appeared in real
     detections — not a hardcoded list of assumed defect types. Whatever
-    classes your trained model actually uses (Crack/Dent/... or
-    good/bad banana, or anything else) are exactly what show up here, in
-    descending count order, each with a stable color assigned by first
-    appearance and an isDefect flag (from class_policy_repo) so the
-    frontend can visually distinguish non-defect/passing classes from
-    real defects in this chart rather than implying everything shown is
-    a defect.
+    classes your trained model actually uses (good/bad apple/banana/
+    orange, or anything else) are exactly what show up here, in
+    descending count order, with an isDefect flag (from class_policy_repo)
+    so the frontend can visually distinguish non-defect/passing classes
+    from real defects in this chart rather than implying everything shown
+    is a defect.
+
+    Colors: the 6 known fruit-quality classes always get their fixed
+    colors (see _FIXED_CLASS_COLORS), regardless of detection order — so
+    a class never changes color between sessions. Any other class name
+    gets a stable color from the rotating palette, assigned by
+    first-appearance order among just the non-fixed classes.
     """
     items = list_detections()
     counts: dict[str, int] = {}
     for d in items:
         counts[d["defectType"]] = counts.get(d["defectType"], 0) + 1
 
-    # Stable color assignment: order of first appearance in the data
-    # (oldest detection first), not alphabetical or hardcoded, so colors
-    # don't reshuffle as new classes appear over time.
+    # Stable fallback-color assignment for classes NOT in the fixed map:
+    # order of first appearance in the data (oldest first), not
+    # alphabetical, so colors don't reshuffle as new classes appear.
     seen_order: list[str] = []
     for d in reversed(items):  # items is newest-first; walk oldest-first
         name = d["defectType"]
-        if name not in seen_order:
+        if name not in _FIXED_CLASS_COLORS and name not in seen_order:
             seen_order.append(name)
 
-    color_map = {name: _PALETTE[i % len(_PALETTE)] for i, name in enumerate(seen_order)}
+    fallback_color_map = {name: _PALETTE[i % len(_PALETTE)] for i, name in enumerate(seen_order)}
     policy = class_policy_repo.get_policy()
+
+    def resolve_color(name: str) -> str:
+        return _FIXED_CLASS_COLORS.get(name) or fallback_color_map[name]
 
     result = [
         {
             "name": name,
             "value": count,
-            "color": color_map[name],
+            "color": resolve_color(name),
             "isDefect": policy.get(name, True),
         }
         for name, count in sorted(counts.items(), key=lambda kv: -kv[1])

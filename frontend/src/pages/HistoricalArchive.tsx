@@ -203,8 +203,9 @@ export function HistoricalArchive() {
                   onClick={() => setSelectedDefectType(type.name)}
                 >
                   <span
-                    className="inline-block w-2 h-2 rounded-full mr-1.5"
-                    style={{ backgroundColor: type.color, opacity: type.isDefect ? 1 : 0.5 }}
+                    className={`inline-block w-2 h-2 rounded-full mr-1.5 ${
+                      type.isDefect ? "bg-red-500" : "bg-gray-400"
+                    }`}
                   />
                   {type.name}
                   {!type.isDefect && <span className="ml-1 text-[10px] text-gray-400">(pass)</span>}
