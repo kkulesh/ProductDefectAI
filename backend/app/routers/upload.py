@@ -100,7 +100,7 @@ async def upload_video(file: UploadFile = File(...)):
 async def process_video(
     filename: str = Form(...),
     confidence_threshold: float = Form(0.5),
-    sample_every_n_frames: int = Form(15),
+    sample_every_n_frames: int = Form(3),
     max_frames: int = Form(60),
 ):
     """

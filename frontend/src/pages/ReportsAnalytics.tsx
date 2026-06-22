@@ -9,6 +9,7 @@ import {
   Bar,
   PieChart,
   Pie,
+  Curve,
   Cell,
   XAxis,
   YAxis,
@@ -156,17 +157,23 @@ export function ReportsAnalytics() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={distribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
+                    data={distribution}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={(props: any) =>
+                      (props.percent ?? 0) * 100 < 2
+                        ? <></>
+                        : <Curve {...props} type="linear" className="recharts-pie-label-line" />
+                    }
+                    label={({ percent }) =>
+                      (percent ?? 0) * 100 < 2 ? "" : `${((percent ?? 0) * 100).toFixed(0)}%`
+                    }
+                    outerRadius={70}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
                   {distribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} fillOpacity={entry.isDefect ? 1 : 0.45} />
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -178,7 +185,7 @@ export function ReportsAnalytics() {
                   <div className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: item.color, opacity: item.isDefect ? 1 : 0.45 }}
+                      style={{ backgroundColor: item.color }}
                     ></div>
                     <span className="text-gray-700">{item.name}</span>
                     {!item.isDefect && (

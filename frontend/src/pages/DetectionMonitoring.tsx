@@ -57,8 +57,7 @@ export function DetectionMonitoring() {
           const res = await uploadApi.video(file);
           const processed = await uploadApi.processVideo(res.filename, {
             confidenceThreshold: confidence[0] / 100,
-            sampleEveryNFrames: 15,
-            maxFrames: 40,
+            targetFps: 3,
           });
           setVideoFrames(processed.frames);
           setUploadModelWarning(processed.warning);
